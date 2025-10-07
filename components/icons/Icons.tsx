@@ -79,3 +79,23 @@ export const ReferencesIcon: React.FC = () => (
         </svg>
     </IconWrapper>
 );
+
+export const DownloadIcon: React.FC<{className?: string}> = ({ className }) => (
+    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className={className}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
+    </svg>
+);
+
+export const GoogleDriveIcon: React.FC<{className?: string}> = ({ className }) => (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" fill="currentColor" className={className}>
+        <path d="M333.5,176.5l-137.8,238.6l-33.3-57.6L300.2,119.9L333.5,176.5z"/>
+        <path d="M119.9,119.9l-56.6,98.1l137.8,238.6l56.6-98.1L119.9,119.9z M222.8,391.2L121.3,216.5l28.3-49l101.5,175.7L222.8,391.2z"/>
+        <path d="M358.3,73.5L220.5,312.1l33.3,57.6l137.8-238.6L358.3,73.5z"/>
+    </svg>
+);
+
+export const CloseIcon: React.FC<{className?: string}> = ({ className }) => (
+    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className={className}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+    </svg>
+);

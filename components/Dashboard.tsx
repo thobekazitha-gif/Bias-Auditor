@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import type { AnalysisResult } from '../types';
 import MetricChart from './MetricChart';
 import { 
@@ -11,7 +11,10 @@ import {
     ImplicationsIcon,
     RecommendationsIcon,
     FrameworkIcon,
-    ReferencesIcon
+    ReferencesIcon,
+    DownloadIcon,
+    GoogleDriveIcon,
+    CloseIcon
 } from './icons/Icons';
 
 interface DashboardProps {
@@ -22,6 +25,61 @@ interface DashboardProps {
 }
 
 const Dashboard: React.FC<DashboardProps> = ({ result, onReset, datasetDescription, attributes }) => {
+    const [showExportMenu, setShowExportMenu] = useState(false);
+    const [showDriveInstructions, setShowDriveInstructions] = useState(false);
+    const exportMenuRef = useRef<HTMLDivElement>(null);
+
+
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (exportMenuRef.current && !exportMenuRef.current.contains(event.target as Node)) {
+                setShowExportMenu(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
+
+    const downloadFile = (content: string, fileName: string, mimeType: string) => {
+        const blob = new Blob([content], { type: mimeType });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = fileName;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        setShowExportMenu(false);
+    };
+
+    const handleExportJson = () => {
+        const jsonString = JSON.stringify(result, null, 2);
+        downloadFile(jsonString, 'bias_audit_report.json', 'application/json');
+    };
+
+    const handleExportMetricsCsv = () => {
+        let csvContent = '"Metric Name","Group","Score"\n';
+        result.fairness_metrics.forEach(metric => {
+            metric.scores.forEach(score => {
+                csvContent += `"${metric.name}","${score.group}",${score.score}\n`;
+            });
+        });
+        downloadFile(csvContent, 'fairness_metrics.csv', 'text/csv');
+    };
+
+    const handleExportMitigationCsv = () => {
+        let csvContent = '"Strategy Name","Metric Name","Status","Group","Score"\n';
+        result.mitigation_strategies.forEach(strategy => {
+            strategy.before_after_metrics.before.forEach(score => {
+                csvContent += `"${strategy.name}","${strategy.metric_name}","Before","${score.group}",${score.score}\n`;
+            });
+            strategy.before_after_metrics.after.forEach(score => {
+                csvContent += `"${strategy.name}","${strategy.metric_name}","After","${score.group}",${score.score}\n`;
+            });
+        });
+        downloadFile(csvContent, 'mitigation_strategies.csv', 'text/csv');
+    };
     
     const Card: React.FC<{children: React.ReactNode, className?: string}> = ({ children, className }) => (
         <div className={`bg-gray-800/50 backdrop-blur-sm p-6 rounded-xl shadow-lg border border-gray-700 ${className}`}>
@@ -29,15 +87,42 @@ const Dashboard: React.FC<DashboardProps> = ({ result, onReset, datasetDescripti
         </div>
     );
 
-    const CardTitle: React.FC<{children: React.ReactNode, icon: React.ReactNode}> = ({ children, icon }) => (
-        <h3 className="text-xl font-bold text-gray-100 mb-4 flex items-center gap-3">
-            {icon}
-            <span>{children}</span>
-        </h3>
+    const CardTitle: React.FC<{children: React.ReactNode, icon: React.ReactNode, action?: React.ReactNode}> = ({ children, icon, action }) => (
+        <div className="flex justify-between items-center mb-4">
+            <h3 className="text-xl font-bold text-gray-100 flex items-center gap-3">
+                {icon}
+                <span>{children}</span>
+            </h3>
+            {action}
+        </div>
+    );
+
+    const ExportButton: React.FC<{onClick: () => void, title: string}> = ({ onClick, title }) => (
+        <button onClick={onClick} title={title} className="text-gray-400 hover:text-white transition-colors p-1 rounded-full hover:bg-gray-700">
+            <DownloadIcon className="h-5 w-5" />
+        </button>
     );
 
     return (
         <div className="space-y-8 animate-fade-in">
+             {showDriveInstructions && (
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 animate-fade-in-fast">
+                    <div className="bg-gray-800 border border-gray-700 rounded-xl p-8 max-w-lg w-full relative shadow-2xl shadow-red-900/40">
+                        <button onClick={() => setShowDriveInstructions(false)} className="absolute top-4 right-4 text-gray-500 hover:text-white">
+                            <CloseIcon className="h-6 w-6" />
+                        </button>
+                        <h3 className="text-2xl font-bold text-gray-100 mb-4 flex items-center gap-3"><GoogleDriveIcon className="h-7 w-7" /> Save to Google Drive</h3>
+                        <div className="space-y-4 text-gray-300">
+                            <p><span className="font-bold text-red-400">Step 1:</span> First, download the report to your computer using the 'Download Report' option.</p>
+                            <p><span className="font-bold text-red-400">Step 2:</span> Open <a href="https://drive.google.com" target="_blank" rel="noopener noreferrer" className="text-blue-400 underline hover:text-blue-300">drive.google.com</a> in a new tab.</p>
+                            <p><span className="font-bold text-red-400">Step 3:</span> Click the <span className="font-semibold text-white">'+ New'</span> button in Google Drive, select 'File Upload', and choose the <code className="bg-gray-700 px-1 py-0.5 rounded text-sm">bias_audit_report.json</code> file you downloaded.</p>
+                        </div>
+                         <button onClick={() => setShowDriveInstructions(false)} className="mt-6 w-full bg-red-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-red-700 transition-colors">
+                            Got it
+                        </button>
+                    </div>
+                </div>
+            )}
             <div className="bg-gray-800/50 backdrop-blur-sm p-6 rounded-xl shadow-lg border border-gray-700">
                 <div className="flex justify-between items-start">
                     <div>
@@ -46,12 +131,42 @@ const Dashboard: React.FC<DashboardProps> = ({ result, onReset, datasetDescripti
                            Analysis of: <span className="font-semibold text-gray-200">{datasetDescription}</span> for attributes: <span className="font-semibold text-gray-200">{attributes.join(', ')}</span>.
                         </p>
                     </div>
-                    <button 
-                        onClick={onReset}
-                        className="bg-gray-700 text-gray-300 font-semibold py-2 px-6 rounded-lg hover:bg-gray-600 transition-colors"
-                    >
-                        Start New Analysis
-                    </button>
+                     <div className="flex items-center gap-4 flex-shrink-0">
+                        <div className="relative" ref={exportMenuRef}>
+                            <button 
+                                onClick={() => setShowExportMenu(prev => !prev)}
+                                className="bg-red-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-red-700 transition-colors flex items-center gap-2"
+                            >
+                                <DownloadIcon className="h-5 w-5" />
+                                Export Report
+                            </button>
+                            {showExportMenu && (
+                                <div className="absolute top-full right-0 mt-2 w-64 bg-gray-800 border border-gray-700 rounded-lg shadow-xl z-10 animate-fade-in-fast">
+                                    <ul className="py-2">
+                                        <li>
+                                            <button onClick={handleExportJson} className="w-full text-left px-4 py-2 text-gray-200 hover:bg-gray-700 flex items-center gap-3">
+                                                <DownloadIcon className="h-5 w-5 text-gray-400" />
+                                                Download Report (.json)
+                                            </button>
+                                        </li>
+                                        <li>
+                                             <button onClick={() => { setShowDriveInstructions(true); setShowExportMenu(false); }} className="w-full text-left px-4 py-2 text-gray-200 hover:bg-gray-700 flex items-center gap-3">
+                                                <GoogleDriveIcon className="h-5 w-5 text-gray-400" />
+                                                Save to Google Drive
+                                            </button>
+                                        </li>
+                                    </ul>
+                                </div>
+                            )}
+                        </div>
+
+                        <button 
+                            onClick={onReset}
+                            className="bg-gray-700 text-gray-300 font-semibold py-2 px-6 rounded-lg hover:bg-gray-600 transition-colors"
+                        >
+                            New Analysis
+                        </button>
+                    </div>
                 </div>
             </div>
             
@@ -64,7 +179,12 @@ const Dashboard: React.FC<DashboardProps> = ({ result, onReset, datasetDescripti
                     </Card>
 
                     <Card>
-                        <CardTitle icon={<MetricsIcon />}>Quantitative Fairness Metrics</CardTitle>
+                        <CardTitle 
+                            icon={<MetricsIcon />}
+                            action={<ExportButton onClick={handleExportMetricsCsv} title="Export Metrics as CSV"/>}
+                        >
+                            Quantitative Fairness Metrics
+                        </CardTitle>
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                             {result.fairness_metrics.map((metric, index) => (
                                 <div key={index} className="bg-gray-900/70 p-4 rounded-lg border border-gray-700">
@@ -77,7 +197,12 @@ const Dashboard: React.FC<DashboardProps> = ({ result, onReset, datasetDescripti
                     </Card>
 
                     <Card>
-                        <CardTitle icon={<MitigationIcon />}>Bias Mitigation Strategies</CardTitle>
+                         <CardTitle 
+                            icon={<MitigationIcon />}
+                            action={<ExportButton onClick={handleExportMitigationCsv} title="Export Mitigation Data as CSV" />}
+                        >
+                            Bias Mitigation Strategies
+                        </CardTitle>
                         <div className="space-y-6">
                              {result.mitigation_strategies.map((strategy, index) => (
                                 <div key={index} className="p-4 border border-gray-700 rounded-lg">
