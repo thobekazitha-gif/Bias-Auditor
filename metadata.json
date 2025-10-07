@@ -1,0 +1,5 @@
+{
+  "name": "AI Bias Auditor",
+  "description": "An interactive tool to conduct a thorough analysis of bias in a machine learning dataset or model, identifying ethical concerns and proposing concrete mitigation strategies using AI.",
+  "requestFramePermissions": []
+}
