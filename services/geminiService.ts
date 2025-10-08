@@ -1,9 +1,13 @@
+
 import { GoogleGenAI, Type } from "@google/genai";
 import type { AnalysisResult } from '../types';
 
-export const generateBiasAudit = async (datasetDescription: string, protectedAttributes: string[]): Promise<AnalysisResult> => {
-    // Initialize the Google GenAI client with the API key from environment variables.
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY! });
+export const generateBiasAudit = async (datasetDescription: string, protectedAttributes: string[], apiKey: string): Promise<AnalysisResult> => {
+    if (!apiKey) {
+      throw new Error("The Gemini API key is missing. Please enter your API key to proceed.");
+    }
+    // Initialize the Google GenAI client with the provided API key.
+    const ai = new GoogleGenAI({ apiKey });
 
     // Define the strict JSON schema for the expected response from the Gemini API.
     // This ensures the data structure is consistent and matches our `AnalysisResult` type.
@@ -172,7 +176,7 @@ export const generateBiasAudit = async (datasetDescription: string, protectedAtt
       let errorMessage = "An error occurred while generating the bias audit.";
       if (error instanceof Error) {
         if (error.message.includes('API key')) {
-          errorMessage = "The Gemini API key is invalid or missing. Please ensure it is correctly configured in your environment.";
+          errorMessage = "The Gemini API key is invalid or missing. Please check the key and try again.";
         } else if (error.message.toLowerCase().includes('failed to fetch') || error.message.toLowerCase().includes('network')) {
             errorMessage = "A network error occurred while contacting the Gemini API. Please check your internet connection and ensure you can access Google services.";
         } else {
