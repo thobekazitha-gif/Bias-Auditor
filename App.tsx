@@ -1,4 +1,3 @@
-
 import React, { useState, useCallback } from 'react';
 import type { AnalysisResult, ProtectedAttribute } from './types';
 import { DEFAULT_DATASETS, PROTECTED_ATTRIBUTES } from './constants';
@@ -14,9 +13,6 @@ const App: React.FC = () => {
     const [isLoading, setIsLoading] = useState<boolean>(false);
     const [error, setError] = useState<string | null>(null);
     const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null);
-    const [apiKey, setApiKey] = useState<string>('');
-
-    const hasEnvKey = !!process.env.API_KEY;
 
     const handleAttributeToggle = (attribute: ProtectedAttribute) => {
         setSelectedAttributes(prev => {
@@ -31,13 +27,6 @@ const App: React.FC = () => {
     };
 
     const handleRunAnalysis = useCallback(async () => {
-        const keyToUse = hasEnvKey ? process.env.API_KEY! : apiKey;
-        
-        if (!keyToUse) {
-            setError('Please provide a Gemini API key to run the analysis.');
-            return;
-        }
-
         if (selectedAttributes.size === 0) {
             setError('Please select at least one protected attribute to analyze.');
             return;
@@ -54,7 +43,7 @@ const App: React.FC = () => {
         setAnalysisResult(null);
 
         try {
-            const result = await generateBiasAudit(datasetDescription, Array.from(selectedAttributes), keyToUse);
+            const result = await generateBiasAudit(datasetDescription, Array.from(selectedAttributes));
             setAnalysisResult(result);
         } catch (e) {
             console.error(e);
@@ -63,7 +52,7 @@ const App: React.FC = () => {
         } finally {
             setIsLoading(false);
         }
-    }, [selectedDataset, customDataset, selectedAttributes, apiKey, hasEnvKey]);
+    }, [selectedDataset, customDataset, selectedAttributes]);
     
     const resetAnalysis = () => {
       setAnalysisResult(null);
@@ -82,25 +71,6 @@ const App: React.FC = () => {
                         <h2 className="text-3xl font-bold text-red-500 mb-2">AI Bias Audit Configuration</h2>
                         <p className="text-gray-400 mb-8">Configure your bias analysis by selecting a dataset and the protected attributes you want to examine.</p>
                         
-                        {!hasEnvKey && (
-                            <div className="mb-8">
-                                <label htmlFor="apiKey" className="block text-xl font-semibold text-gray-100 mb-3">0. Your Gemini API Key</label>
-                                <input
-                                    id="apiKey"
-                                    type="password"
-                                    value={apiKey}
-                                    onChange={(e) => setApiKey(e.target.value)}
-                                    placeholder="Enter your Gemini API key"
-                                    className="w-full p-3 bg-gray-900 border border-gray-600 rounded-lg text-gray-200 focus:ring-2 focus:ring-red-500 focus:border-red-500 transition"
-                                    aria-required="true"
-                                    aria-label="Gemini API Key"
-                                />
-                                <p className="text-xs text-gray-500 mt-2">
-                                    Your API key is used only for this session and not stored. Get your key from <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener noreferrer" className="text-red-400 underline hover:text-red-300">Google AI Studio</a>.
-                                </p>
-                            </div>
-                        )}
-
                         {/* Step 1: Dataset Selection */}
                         <div className="mb-8">
                             <label htmlFor="dataset" className="block text-xl font-semibold text-gray-100 mb-3">1. Select or Describe Your Dataset/Model</label>
@@ -152,7 +122,7 @@ const App: React.FC = () => {
                         <div className="text-center mt-8">
                             <button
                                 onClick={handleRunAnalysis}
-                                disabled={isLoading || selectedAttributes.size === 0 || (!hasEnvKey && !apiKey)}
+                                disabled={isLoading || selectedAttributes.size === 0}
                                 className="bg-red-600 text-white font-bold py-3 px-8 rounded-lg hover:bg-red-700 transition-transform transform hover:scale-105 disabled:bg-gray-600 disabled:cursor-not-allowed disabled:scale-100 shadow-lg shadow-red-500/40"
                             >
                                 Run Bias Analysis
