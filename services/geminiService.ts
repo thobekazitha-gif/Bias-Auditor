@@ -1,153 +1,184 @@
-
 import { GoogleGenAI, Type } from "@google/genai";
 import type { AnalysisResult } from '../types';
 
-if (!process.env.API_KEY) {
-    throw new Error("API_KEY environment variable not set");
-}
+export const generateBiasAudit = async (datasetDescription: string, protectedAttributes: string[]): Promise<AnalysisResult> => {
+    // Initialize the Google GenAI client with the API key from environment variables.
+    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY! });
 
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-
-const responseSchema = {
-    type: Type.OBJECT,
-    properties: {
-        summary: { type: Type.STRING, description: "A brief, 1-2 paragraph overview of the key bias findings." },
+    // Define the strict JSON schema for the expected response from the Gemini API.
+    // This ensures the data structure is consistent and matches our `AnalysisResult` type.
+    const responseSchema = {
+      type: Type.OBJECT,
+      properties: {
+        summary: { type: Type.STRING, description: "A high-level executive summary of the bias audit findings." },
         fairness_metrics: {
-            type: Type.ARRAY,
-            description: "An array of exactly 3 quantitative fairness metrics.",
-            items: {
-                type: Type.OBJECT,
-                properties: {
-                    name: { type: Type.STRING, description: "Name of the fairness metric (e.g., 'Statistical Parity')." },
-                    description: { type: Type.STRING, description: "A brief explanation of the metric." },
-                    scores: {
-                        type: Type.ARRAY,
-                        description: "Scores for different demographic groups. Score should be a value between 0 and 1.",
-                        items: {
-                            type: Type.OBJECT,
-                            properties: {
-                                group: { type: Type.STRING, description: "Name of the demographic group." },
-                                score: { type: Type.NUMBER, description: "The fairness score for this group." }
-                            },
-                            required: ["group", "score"]
-                        }
-                    }
+          type: Type.ARRAY,
+          description: "An array of quantitative fairness metrics.",
+          items: {
+            type: Type.OBJECT,
+            properties: {
+              name: { type: Type.STRING, description: "Name of the fairness metric (e.g., 'Equal Opportunity Difference')." },
+              description: { type: Type.STRING, description: "A brief explanation of what the metric measures." },
+              scores: {
+                type: Type.ARRAY,
+                description: "Scores for different demographic groups.",
+                items: {
+                  type: Type.OBJECT,
+                  properties: {
+                    group: { type: Type.STRING, description: "The demographic group (e.g., 'Male', 'Female')." },
+                    score: { type: Type.NUMBER, description: "The metric score for this group (between 0 and 1)." },
+                  },
+                  required: ['group', 'score'],
                 },
-                required: ["name", "description", "scores"]
-            }
+              },
+            },
+            required: ['name', 'description', 'scores'],
+          },
         },
         mitigation_strategies: {
-            type: Type.ARRAY,
-            description: "An array of exactly 2 bias mitigation techniques.",
-            items: {
+          type: Type.ARRAY,
+          description: "Proposed strategies to mitigate the identified biases.",
+          items: {
+            type: Type.OBJECT,
+            properties: {
+              name: { type: Type.STRING, description: "Name of the mitigation strategy." },
+              description: { type: Type.STRING, description: "Detailed description of how to implement the strategy." },
+              metric_name: { type: Type.STRING, description: "The primary metric this strategy aims to improve."},
+              before_after_metrics: {
                 type: Type.OBJECT,
+                description: "Simulated metric scores before and after applying the strategy.",
                 properties: {
-                    name: { type: Type.STRING, description: "Name of the mitigation technique (e.g., 'Reweighing')." },
-                    description: { type: Type.STRING, description: "How this technique works." },
-                    metric_name: { type: Type.STRING, description: "The primary fairness metric this strategy is targeting." },
-                    before_after_metrics: {
-                        type: Type.OBJECT,
-                        description: "Comparison of a key metric before and after mitigation.",
-                        properties: {
-                            before: {
-                                type: Type.ARRAY,
-                                items: {
-                                    type: Type.OBJECT,
-                                    properties: { group: { type: Type.STRING }, score: { type: Type.NUMBER } },
-                                    required: ["group", "score"]
-                                }
-                            },
-                            after: {
-                                type: Type.ARRAY,
-                                items: {
-                                    type: Type.OBJECT,
-                                    properties: { group: { type: Type.STRING }, score: { type: Type.NUMBER } },
-                                    required: ["group", "score"]
-                                }
-                            }
-                        },
-                        required: ["before", "after"]
-                    }
+                  before: {
+                    type: Type.ARRAY,
+                    items: {
+                      type: Type.OBJECT,
+                      properties: {
+                        group: { type: Type.STRING },
+                        score: { type: Type.NUMBER },
+                      },
+                      required: ['group', 'score'],
+                    },
+                  },
+                  after: {
+                    type: Type.ARRAY,
+                    items: {
+                      type: Type.OBJECT,
+                      properties: {
+                        group: { type: Type.STRING },
+                        score: { type: Type.NUMBER },
+                      },
+                      required: ['group', 'score'],
+                    },
+                  },
                 },
-                required: ["name", "description", "metric_name", "before_after_metrics"]
-            }
+                required: ['before', 'after'],
+              },
+            },
+            required: ['name', 'description', 'metric_name', 'before_after_metrics'],
+          },
         },
         dataset_recommendations: {
-            type: Type.ARRAY,
-            description: "A list of actionable recommendations for improving the dataset.",
-            items: { type: Type.STRING }
+          type: Type.ARRAY,
+          description: "Specific, actionable recommendations for improving the dataset to reduce bias.",
+          items: { type: Type.STRING },
         },
         real_world_implications: {
-            type: Type.STRING,
-            description: "A paragraph connecting findings to potential real-world harms."
+          type: Type.STRING,
+          description: "A narrative on the potential real-world impact and ethical consequences of the identified biases."
         },
         ethics_framework: {
             type: Type.OBJECT,
+            description: "An ethical framework to guide the responsible use of the model.",
             properties: {
-                title: { type: Type.STRING, description: "A title for the ethics framework, specific to the use case." },
+                title: { type: Type.STRING, description: "The title of the ethical framework."},
                 principles: {
                     type: Type.ARRAY,
                     items: {
                         type: Type.OBJECT,
                         properties: {
-                            name: { type: Type.STRING, description: "Name of an ethical principle." },
-                            description: { type: Type.STRING, description: "Description of the principle." }
+                            name: { type: Type.STRING, description: "Name of the ethical principle."},
+                            description: { type: Type.STRING, description: "Description of the principle."},
                         },
-                        required: ["name", "description"]
+                        required: ['name', 'description'],
                     }
                 }
             },
-            required: ["title", "principles"]
+            required: ['title', 'principles'],
         },
         ethics_statement: {
             type: Type.STRING,
-            description: "A 400-500 word ethics statement connecting findings to broader AI ethics principles."
+            description: "A formal ethics statement regarding the model's development and deployment."
         },
         references: {
-            type: Type.ARRAY,
-            description: "A list of relevant fairness research papers and frameworks.",
-            items: { type: Type.STRING }
-        }
-    },
-    required: ["summary", "fairness_metrics", "mitigation_strategies", "dataset_recommendations", "real_world_implications", "ethics_framework", "ethics_statement", "references"]
-};
+          type: Type.ARRAY,
+          description: "A list of academic papers or resources relevant to the analysis.",
+          items: { type: Type.STRING },
+        },
+      },
+      required: [
+        'summary',
+        'fairness_metrics',
+        'mitigation_strategies',
+        'dataset_recommendations',
+        'real_world_implications',
+        'ethics_framework',
+        'ethics_statement',
+        'references'
+      ],
+    };
 
-
-export const generateBiasAudit = async (datasetDescription: string, protectedAttributes: string[]): Promise<AnalysisResult> => {
+    // Construct the detailed prompt for the AI model.
     const prompt = `
-        You are an expert AI Ethicist and Data Scientist specializing in fairness audits.
-        Your task is to conduct a thorough bias audit for the following scenario and provide the results in a single, valid JSON object.
-        Do not include any text, markdown formatting, or code fences before or after the JSON object.
+      You are an expert AI Ethicist and Data Scientist specializing in fairness, accountability, and transparency in machine learning.
+      Your task is to conduct a comprehensive bias audit.
 
-        Scenario Details:
-        - Dataset/Model Description: "${datasetDescription}"
-        - Protected Attributes to Analyze: ${protectedAttributes.join(', ')}
+      **Dataset/Model Description:**
+      ${datasetDescription}
 
-        Please generate a detailed analysis. For fairness scores, simulate realistic but illustrative values that clearly demonstrate potential biases. Ensure the 'after' scores for mitigation strategies show a clear improvement in fairness (i.e., scores for different groups are closer together). The ethics statement must be between 400 and 500 words.
+      **Protected Attributes to Analyze:**
+      ${protectedAttributes.join(', ')}
+
+      **Instructions:**
+      1.  **Analyze Potential Biases:** Based on the provided description and protected attributes, identify potential sources and types of bias (e.g., selection bias, representation bias, historical bias).
+      2.  **Quantitative Fairness Metrics:** Generate realistic, hypothetical scores for at least three relevant quantitative fairness metrics (e.g., Demographic Parity, Equal Opportunity, Predictive Equality). For each metric, provide scores for different subgroups within the protected attributes. Ensure the scores clearly illustrate potential disparities. The scores should be between 0.0 and 1.0.
+      3.  **Bias Mitigation Strategies:** Propose two concrete mitigation strategies (e.g., re-sampling, re-weighing, adversarial de-biasing, post-processing adjustments). For each strategy, describe it and provide a hypothetical "before" and "after" comparison of a relevant fairness metric to show its potential impact.
+      4.  **Dataset Recommendations:** Provide a list of actionable recommendations for improving the dataset itself to reduce bias.
+      5.  **Real-World Implications:** Write a paragraph on the potential real-world, negative consequences if the identified biases are not addressed.
+      6.  **Ethics Framework:** Propose a relevant ethics framework (e.g., based on principles like Fairness, Transparency, Accountability) with a title and a few key principles and their descriptions.
+      7.  **Ethics Statement:** Draft a formal ethics statement that could be used for this model.
+      8.  **References:** List two fictional but plausible academic-style references related to AI bias or fairness in this domain.
+
+      Provide your entire analysis in a single, valid JSON object that strictly adheres to the provided schema. Do not include any text, markdown, or explanations outside of the JSON object itself.
     `;
 
     try {
-        const response = await ai.models.generateContent({
-            model: "gemini-2.5-flash",
-            contents: prompt,
-            config: {
-                responseMimeType: "application/json",
-                responseSchema: responseSchema,
-            },
-        });
-        
-        const jsonText = response.text.trim();
-        const result = JSON.parse(jsonText);
+      // Call the Gemini API with the prompt and schema configuration.
+      const response = await ai.models.generateContent({
+        model: "gemini-2.5-flash",
+        contents: prompt,
+        config: {
+          responseMimeType: "application/json",
+          responseSchema: responseSchema,
+        },
+      });
 
-        // Basic validation
-        if (!result.summary || !result.fairness_metrics || result.fairness_metrics.length === 0) {
-            throw new Error("Invalid JSON structure received from API.");
-        }
-
-        return result as AnalysisResult;
+      // Parse the JSON response text and cast it to our AnalysisResult type.
+      const resultText = response.text.trim();
+      const result = JSON.parse(resultText);
+      return result as AnalysisResult;
 
     } catch (error) {
-        console.error("Error calling Gemini API:", error);
-        throw new Error("Failed to generate bias audit from the AI model.");
+      console.error("Error calling Gemini API:", error);
+      let errorMessage = "An error occurred while generating the bias audit.";
+      if (error instanceof Error) {
+        if (error.message.includes('API key')) {
+          errorMessage = "The Gemini API key is invalid or missing. Please ensure it is correctly configured in your environment.";
+        } else if (error.message.toLowerCase().includes('failed to fetch') || error.message.toLowerCase().includes('network')) {
+            errorMessage = "A network error occurred while contacting the Gemini API. Please check your internet connection and ensure you can access Google services.";
+        } else {
+          errorMessage = `An unexpected error occurred with the Gemini API: ${error.message}`;
+        }
+      }
+      throw new Error(errorMessage);
     }
 };

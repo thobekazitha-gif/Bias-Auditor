@@ -1,3 +1,4 @@
+
 import React, { useState, useCallback } from 'react';
 import type { AnalysisResult, ProtectedAttribute } from './types';
 import { DEFAULT_DATASETS, PROTECTED_ATTRIBUTES } from './constants';
@@ -47,7 +48,8 @@ const App: React.FC = () => {
             setAnalysisResult(result);
         } catch (e) {
             console.error(e);
-            setError('An error occurred while generating the analysis. Please check the console for details.');
+            const errorMessage = e instanceof Error ? e.message : 'An unknown error occurred. Please check the console for details.';
+            setError(errorMessage);
         } finally {
             setIsLoading(false);
         }
