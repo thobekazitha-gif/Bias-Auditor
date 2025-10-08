@@ -7,6 +7,7 @@ import Loader from './components/Loader';
 import Dashboard from './components/Dashboard';
 
 const App: React.FC = () => {
+    const [apiKey, setApiKey] = useState<string>('');
     const [selectedDataset, setSelectedDataset] = useState<string>(DEFAULT_DATASETS[0].description);
     const [customDataset, setCustomDataset] = useState<string>('');
     const [selectedAttributes, setSelectedAttributes] = useState<Set<ProtectedAttribute>>(new Set(['Gender', 'Race']));
@@ -27,6 +28,10 @@ const App: React.FC = () => {
     };
 
     const handleRunAnalysis = useCallback(async () => {
+        if (!apiKey) {
+            setError('Please provide your Gemini API key.');
+            return;
+        }
         if (selectedAttributes.size === 0) {
             setError('Please select at least one protected attribute to analyze.');
             return;
@@ -43,7 +48,7 @@ const App: React.FC = () => {
         setAnalysisResult(null);
 
         try {
-            const result = await generateBiasAudit(datasetDescription, Array.from(selectedAttributes));
+            const result = await generateBiasAudit(datasetDescription, Array.from(selectedAttributes), apiKey);
             setAnalysisResult(result);
         } catch (e) {
             console.error(e);
@@ -52,11 +57,12 @@ const App: React.FC = () => {
         } finally {
             setIsLoading(false);
         }
-    }, [selectedDataset, customDataset, selectedAttributes]);
+    }, [selectedDataset, customDataset, selectedAttributes, apiKey]);
     
     const resetAnalysis = () => {
       setAnalysisResult(null);
       setError(null);
+      setApiKey('');
       setSelectedDataset(DEFAULT_DATASETS[0].description);
       setCustomDataset('');
       setSelectedAttributes(new Set(['Gender', 'Race']));
@@ -116,13 +122,28 @@ const App: React.FC = () => {
                             </div>
                         </div>
 
+                        {/* Step 3: API Key */}
+                        <div className="mb-8">
+                             <label htmlFor="apiKey" className="block text-xl font-semibold text-gray-100 mb-3">3. Provide Your Gemini API Key</label>
+                             <input
+                                id="apiKey"
+                                type="password"
+                                value={apiKey}
+                                onChange={(e) => setApiKey(e.target.value)}
+                                placeholder="Enter your API key here"
+                                className="w-full p-3 bg-gray-900 border border-gray-600 rounded-lg text-gray-200 focus:ring-2 focus:ring-red-500 focus:border-red-500 transition"
+                             />
+                             <p className="text-xs text-gray-500 mt-2">Your key is used only for this session and is not stored. Using environment variables is recommended for production.</p>
+                        </div>
+
+
                         {error && <div className="text-red-400 bg-red-900/50 border border-red-500/50 p-3 rounded-lg mb-6">{error}</div>}
 
-                        {/* Step 3: Run Analysis */}
+                        {/* Step 4: Run Analysis */}
                         <div className="text-center mt-8">
                             <button
                                 onClick={handleRunAnalysis}
-                                disabled={isLoading || selectedAttributes.size === 0}
+                                disabled={isLoading || selectedAttributes.size === 0 || !apiKey}
                                 className="bg-red-600 text-white font-bold py-3 px-8 rounded-lg hover:bg-red-700 transition-transform transform hover:scale-105 disabled:bg-gray-600 disabled:cursor-not-allowed disabled:scale-100 shadow-lg shadow-red-500/40"
                             >
                                 Run Bias Analysis
