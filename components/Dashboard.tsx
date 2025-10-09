@@ -70,53 +70,62 @@ const Dashboard: React.FC<DashboardProps> = ({ result, onReset, datasetDescripti
     const handleExportPdf = async () => {
         if (!reportRef.current || isGeneratingPdf) return;
 
+        if (typeof window.jspdf === 'undefined' || typeof window.html2canvas === 'undefined') {
+            console.error("PDF generation libraries (jspdf, html2canvas) not found.");
+            alert("Error: PDF generation libraries could not be loaded. Please refresh the page and try again.");
+            return;
+        }
+
         const { jsPDF } = window.jspdf;
         const html2canvas = window.html2canvas;
 
         setIsGeneratingPdf(true);
         setShowExportMenu(false);
 
+        const reportElement = reportRef.current;
+        window.scrollTo(0, 0);
+
         try {
-            const canvas = await html2canvas(reportRef.current, {
+            const canvas = await html2canvas(reportElement, {
                 scale: 2,
                 backgroundColor: '#111827',
                 useCORS: true,
+                logging: false,
                 ignoreElements: (element) => element.classList.contains('pdf-export-ignore'),
             });
             
             const imgData = canvas.toDataURL('image/png');
+            
             const pdf = new jsPDF({
-                orientation: 'p',
+                orientation: 'portrait',
                 unit: 'mm',
                 format: 'a4',
-                putOnlyUsedFonts: true,
-                compress: true,
             });
             
             const pdfWidth = pdf.internal.pageSize.getWidth();
             const pdfHeight = pdf.internal.pageSize.getHeight();
             const canvasWidth = canvas.width;
             const canvasHeight = canvas.height;
-            const ratio = canvasWidth / pdfWidth;
-            const imgHeight = canvasHeight / ratio;
+            const canvasAspectRatio = canvasHeight / canvasWidth;
+            const projectedImageHeight = pdfWidth * canvasAspectRatio;
 
-            let heightLeft = imgHeight;
+            let heightLeft = projectedImageHeight;
             let position = 0;
 
-            pdf.addImage(imgData, 'PNG', 0, position, pdfWidth, imgHeight, undefined, 'FAST');
+            pdf.addImage(imgData, 'PNG', 0, position, pdfWidth, projectedImageHeight, undefined, 'FAST');
             heightLeft -= pdfHeight;
 
             while (heightLeft > 0) {
                 position -= pdfHeight;
                 pdf.addPage();
-                pdf.addImage(imgData, 'PNG', 0, position, pdfWidth, imgHeight, undefined, 'FAST');
+                pdf.addImage(imgData, 'PNG', 0, position, pdfWidth, projectedImageHeight, undefined, 'FAST');
                 heightLeft -= pdfHeight;
             }
 
-            pdf.save('bias_audit_report.pdf');
+            pdf.save('ai-bias-audit-report.pdf');
         } catch (error) {
             console.error('Error generating PDF:', error);
-            // Optionally, show an error message to the user
+            alert("An error occurred while generating the PDF. Please check the console for details.");
         } finally {
             setIsGeneratingPdf(false);
         }
@@ -217,7 +226,7 @@ const Dashboard: React.FC<DashboardProps> = ({ result, onReset, datasetDescripti
                                     )}
                                 </button>
                                 {showExportMenu && (
-                                    <div className="absolute top-full right-0 mt-2 w-64 bg-gray-800 border border-gray-700 rounded-lg shadow-xl z-10 animate-fade-in-fast">
+                                    <div className="absolute top-full right-0 mt-2 w-64 bg-gray-800 border border-gray-700 rounded-lg shadow-xl z-40 animate-fade-in-fast">
                                         <ul className="py-2">
                                             <li>
                                                 <button onClick={handleExportJson} disabled={isGeneratingPdf} className="w-full text-left px-4 py-2 text-gray-200 hover:bg-gray-700 flex items-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed">
