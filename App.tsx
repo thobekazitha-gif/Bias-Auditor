@@ -8,12 +8,15 @@ import Dashboard from './components/Dashboard';
 
 const App: React.FC = () => {
     const [apiKey, setApiKey] = useState<string>('');
+    const [isSampleKeyVisible, setIsSampleKeyVisible] = useState<boolean>(false);
     const [selectedDataset, setSelectedDataset] = useState<string>(DEFAULT_DATASETS[0].description);
     const [customDataset, setCustomDataset] = useState<string>('');
     const [selectedAttributes, setSelectedAttributes] = useState<Set<ProtectedAttribute>>(new Set(['Gender', 'Race']));
     const [isLoading, setIsLoading] = useState<boolean>(false);
     const [error, setError] = useState<string | null>(null);
     const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null);
+    
+    const SAMPLE_API_KEY = 'AIzaSyB0kbECEHbFPS7rsHOnDKkwVIT0R9t_290';
 
     const handleAttributeToggle = (attribute: ProtectedAttribute) => {
         setSelectedAttributes(prev => {
@@ -63,6 +66,7 @@ const App: React.FC = () => {
       setAnalysisResult(null);
       setError(null);
       setApiKey('');
+      setIsSampleKeyVisible(false);
       setSelectedDataset(DEFAULT_DATASETS[0].description);
       setCustomDataset('');
       setSelectedAttributes(new Set(['Gender', 'Race']));
@@ -124,16 +128,37 @@ const App: React.FC = () => {
 
                         {/* Step 3: API Key */}
                         <div className="mb-8">
-                             <label htmlFor="apiKey" className="block text-xl font-semibold text-gray-100 mb-3">3. Provide Your Gemini API Key</label>
-                             <input
+                            <label htmlFor="apiKey" className="block text-xl font-semibold text-gray-100 mb-3">3. Provide Your Gemini API Key</label>
+                            
+                            <div className="flex items-center gap-2 p-2 bg-gray-900 border border-gray-600 rounded-lg mb-3">
+                                <span className="text-sm font-medium text-gray-400 flex-shrink-0 px-2">Sample Key:</span>
+                                <code className="flex-grow text-gray-300 bg-gray-700 px-2 py-1 rounded text-xs tracking-wider overflow-x-auto whitespace-nowrap">
+                                    {isSampleKeyVisible ? SAMPLE_API_KEY : '●'.repeat(SAMPLE_API_KEY.length)}
+                                </code>
+                                <button
+                                    onClick={() => setIsSampleKeyVisible(prev => !prev)}
+                                    className="px-3 py-1 text-xs font-semibold text-gray-300 bg-gray-600 hover:bg-gray-500 rounded transition-colors"
+                                    title={isSampleKeyVisible ? "Hide key" : "View key"}
+                                >
+                                    {isSampleKeyVisible ? 'Hide' : 'View'}
+                                </button>
+                                <button
+                                    onClick={() => setApiKey(SAMPLE_API_KEY)}
+                                    className="px-3 py-1 text-xs font-semibold text-white bg-red-600 hover:bg-red-700 rounded transition-colors"
+                                >
+                                    Use Key
+                                </button>
+                            </div>
+
+                            <input
                                 id="apiKey"
                                 type="password"
                                 value={apiKey}
                                 onChange={(e) => setApiKey(e.target.value)}
-                                placeholder="Enter your API key here"
+                                placeholder="Enter your API key or use the sample key above"
                                 className="w-full p-3 bg-gray-900 border border-gray-600 rounded-lg text-gray-200 focus:ring-2 focus:ring-red-500 focus:border-red-500 transition"
-                             />
-                             <p className="text-xs text-gray-500 mt-2">Your key is used only for this session and is not stored. Using environment variables is recommended for production.</p>
+                            />
+                            <p className="text-xs text-gray-500 mt-2">Your key is used only for this session and is not stored. Using environment variables is recommended for production.</p>
                         </div>
 
 
