@@ -16,7 +16,7 @@ const App: React.FC = () => {
     const [error, setError] = useState<string | null>(null);
     const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null);
     
-    const SAMPLE_API_KEY = 'YOUR_API-KEY';
+    const SAMPLE_API_KEY = 'AIzaSyB0kbECEHbFPS7rsHOnDKkwVIT0R9t_290';
 
     const handleAttributeToggle = (attribute: ProtectedAttribute) => {
         setSelectedAttributes(prev => {
